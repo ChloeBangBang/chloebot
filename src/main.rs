@@ -1,7 +1,8 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
-use chloebot::Handler;
-use commands::GENERAL_GROUP;
+use chloebot::{Handler, ShardManagerContainer};
+use commands::{GENERAL_GROUP, DEBUG_GROUP, HELP, RANDOM_GROUP};
 use config::Config;
 use serenity::{http::Http, framework::StandardFramework};
 use serenity::prelude::*;
@@ -43,8 +44,13 @@ async fn main() {
             .prefix(config.get_prefix())
             .owners(owners)
             .case_insensitivity(config.is_case_insensitive())
-        ).group(&GENERAL_GROUP)
+        ).help(&HELP)
+        .group(&GENERAL_GROUP)
+        .group(&RANDOM_GROUP)
+        .group(&DEBUG_GROUP)
+        // hook to execute before a command gets run
         .before(commands::before)
+        // hook to execute after a command gets run
         .after(commands::after);
 
         let intents = GatewayIntents::all();
@@ -53,6 +59,11 @@ async fn main() {
             .framework(framework)
             .await
             .expect("Error creating client");
+
+        {
+            let mut data = client.data.write().await;
+            data.insert::<ShardManagerContainer>(Arc::clone(&client.shard_manager));
+        }
         
         if let Err(why) = client.start().await {
             println!("Client error: {:?}", why);

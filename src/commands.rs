@@ -1,8 +1,17 @@
 // commands and callbacks
 
-use log::{info, debug};
-use rand::{thread_rng, Rng, prelude::StdRng, SeedableRng};
-use serenity::{framework::standard::{macros::{group, check, command, hook}, Args, CommandOptions, Reason, CommandResult}, client::Context, model::channel::Message};
+use std::collections::HashSet;
+
+use chloebot::ShardManagerContainer;
+use log::{info, warn};
+use rand::{thread_rng, Rng, prelude::*, SeedableRng};
+use serenity::{
+    framework::standard::{
+        macros::{group, check, command, hook, help}, 
+        Args, CommandOptions, Reason, CommandResult, HelpOptions, help_commands, CommandGroup
+    }, client::{Context, bridge::gateway::ShardId}, 
+    model::{channel::Message, id::UserId}
+};
 
 // hooks
 
@@ -30,24 +39,47 @@ pub async fn before(_: &Context, msg: &Message, command_name: &str) -> bool {
 pub async fn after(_: &Context, _: &Message, command_name: &str, command_result: CommandResult) {
     match command_result {
         Ok(()) => info!("Processed command '{}'", command_name),
-        Err(why) => debug!("Command '{}' returned error {:?}", command_name, why),
+        Err(why) => warn!("Command '{}' returned error {:?}", command_name, why),
     }
 }
 
 // commands 
 
-// TODO: add help command
+#[help]
+#[max_levenshtein_distance(3)]
+#[lacking_permissions = "Hide"]
+async fn help(
+    ctx: &Context,
+    msg: &Message,
+    args: Args,
+    help_options: &'static HelpOptions,
+    groups: &[&'static CommandGroup],
+    owners: HashSet<UserId>,
+) -> CommandResult {
+    let _ = help_commands::with_embeds(ctx, msg, args, help_options, groups, owners).await;
+    Ok(())
+}
 
 #[group]
-#[commands(ping, roll, flip, git)]
+#[commands(ping, git)]
 pub struct General;
 
+#[group]
+#[commands(roll, flip)]
+pub struct Random;
+
+#[group]
+#[commands(latency)]
+pub struct Debug;
+
+/// Pong!
 #[command]
 async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
     msg.channel_id.say(&ctx.http, "Pong!").await?;
     Ok(())
 }
 
+/// Flips a coin
 #[command]
 async fn flip(ctx: &Context, msg: &Message) -> CommandResult {
     let flip: &str = match thread_rng().gen_bool(0.5) {
@@ -90,8 +122,50 @@ async fn roll(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
 // TODO: Clean this up and make the output look nicer
 const GITHUB_URL: &'static str = "https://github.com/ChloeBangBang/chloebot";
+/// Prints the github url this bot is hosted at!
 #[command]
 async fn git(ctx: &Context, msg: &Message) -> CommandResult {
     msg.channel_id.say(&ctx.http, GITHUB_URL).await?;
+    Ok(())
+}
+
+/// Responds with shard latency to discord servers
+#[command]
+#[checks(Owner)]
+async fn latency(ctx: &Context, msg: &Message) -> CommandResult {
+    // from serenity example 5:
+    // The shard manager is an interface for mutating, stopping, restarting, 
+    // and retrieing information about shards
+    let data = ctx.data.read().await;
+
+    let shard_manager = match data.get::<ShardManagerContainer>() {
+        Some(v) => v,
+        None => {
+            msg.channel_id.say(ctx, "Failed to get the shard manager").await?;
+            
+            return Ok(());
+        }
+    };
+
+    let manager = shard_manager.lock().await;
+    let runners = manager.runners.lock().await;
+
+    let runner = match runners.get(&ShardId(ctx.shard_id)) {
+        Some(runner) => runner,
+        None => {
+            msg.channel_id.say(ctx, "No shard found").await?;
+            
+            return Ok(());
+        }
+    };
+
+    match runner.latency {
+        Some(dur) => {
+            msg.channel_id.say(ctx, &format!("The shard latency is {:.3}ms", dur.as_secs_f64() * 1000.0)).await?;
+        }
+        None => {
+            msg.channel_id.say(ctx, "Failed to get shard latency").await?;
+        }
+    }
     Ok(())
 }

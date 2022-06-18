@@ -17,7 +17,9 @@ impl EventHandler for Handler {
     }
 }
 
-struct ShardManagerContainer;
+/// A container type for inserting into the client's data field, allowing it to be accessed from across all events and commands
+/// or anywhere else that has access to the Context
+pub struct ShardManagerContainer;
 
 impl TypeMapKey for ShardManagerContainer {
     type Value = Arc<Mutex<ShardManager>>;
