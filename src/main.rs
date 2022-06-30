@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate log;
+
 use std::collections::HashSet;
 use std::sync::Arc;
 
