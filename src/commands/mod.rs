@@ -17,11 +17,11 @@ use debug::*;
 pub struct Random;
 
 #[group]
-#[commands(ping, git)]
+#[commands(ping, git, shrines)]
 pub struct General;
 
 #[group]
-#[commands(latency)]
+#[commands(latency, uptime)]
 pub struct Debug;
 
 // hooks

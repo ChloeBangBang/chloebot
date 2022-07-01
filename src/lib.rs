@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::{Arc, RwLock}, time::{Instant, Duration}};
 
 use serenity::{
     prelude::*,
@@ -6,7 +6,7 @@ use serenity::{
     model::gateway::Ready, client::bridge::gateway::ShardManager, 
 };
 
-use log::info;
+use log::{info, error};
 
 pub struct Handler;
 
@@ -23,4 +23,32 @@ pub struct ShardManagerContainer;
 
 impl TypeMapKey for ShardManagerContainer {
     type Value = Arc<Mutex<ShardManager>>;
+}
+
+#[derive(Clone)]
+pub struct Uptime {
+    inst: Arc<RwLock<Instant>>,
+}
+
+impl Uptime {
+    pub fn get_uptime(&self) -> Duration {
+        match self.inst.read() {
+            Ok(instant) => {
+                return instant.elapsed();
+            },
+            Err(poison_lock) => {
+                error!("Uptime lock poisoned!");
+                return poison_lock.into_inner().elapsed();
+            }
+        }
+    }
+    pub fn new() -> Self {
+        Self {
+            inst: Arc::new(RwLock::new(Instant::now()))
+        }
+    }
+}
+
+impl TypeMapKey for Uptime {
+    type Value = Uptime;
 }

@@ -33,10 +33,10 @@ pub async fn roll(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
     // StdRng::from_entropy() bypasses this :)
     let mut rng = StdRng::from_entropy();
     // upper bounds on the roll
-    let upper: usize;
+    let upper: u128;
 
     // take an upper bounds from the command argument
-    if let Ok(x) = args.trimmed().parse::<usize>() {
+    if let Ok(x) = args.trimmed().parse::<u128>() {
         upper = x;
     } 
     // otherwise, default to 100

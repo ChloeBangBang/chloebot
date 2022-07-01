@@ -4,7 +4,7 @@ extern crate log;
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use chloebot::{Handler, ShardManagerContainer};
+use chloebot::{Handler, ShardManagerContainer, Uptime};
 use commands::{GENERAL_GROUP, DEBUG_GROUP, HELP, RANDOM_GROUP};
 use config::Config;
 use serenity::{http::Http, framework::StandardFramework};
@@ -66,6 +66,7 @@ async fn main() {
         {
             let mut data = client.data.write().await;
             data.insert::<ShardManagerContainer>(Arc::clone(&client.shard_manager));
+            data.insert::<Uptime>(Uptime::new());
         }
         
         if let Err(why) = client.start().await {
